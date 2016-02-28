@@ -6,21 +6,97 @@
     <script>
         model = new falcor.Model({source: new falcor.HttpDataSource('/model.json') });
 
-        // // retrieve the "greeting" key from the root of the Virtual JSON resource
-        // model.
-        //     get(
-        //         ["documentsById", [1, 2, 3], ["filename", "size", "views"]],
-        //         ["tagList", [1, 2], ["name"]],
-        //         ["tagList", [1, 2], "documents", [1, 2, 3]]
-        //     ).
-        //     then(function(response) {
-        //         // document.write(response.json);
-        //         console.log(response);
-        //     });
+        // getting: example of one call using 3 routes, and expanding a reference
+        function getManyRoutesUsed () {
+            model.get(['tagList', '1', 'documents', '1', ['filename', 'size', 'views']]).
+            then(function(doc){
+                console.log(doc.json.tagList[1].documents[1]);
+            });
+        }
 
-        model.getValue('tagList[1].documents[1].filename').then(function(value){console.log(value)});
+        // setting: example with network latency and optimism
+        function set() {
+            model.getValue(['documentsById', 1, 'views']).
+            then(function(val){
+                console.log('documentsById[1].views', val);
 
+                var setTo = val + 1;
+                console.log('let us set to', setTo);
 
+                var setting = model.setValue(['documentsById', 1, 'views'], setTo)
+                console.log('set request sent');
+
+                // neither cache nor interface are updated on this tick, so wait
+                // till next
+                setTimeout(function(){
+                    console.log('optimism!');
+
+                    console.log('from cache', model._root.cache.documentsById[1].views.value);
+
+                    model.getValue(['documentsById', 1, 'views']).
+                    then(function(val){
+                        console.log('from interface:');
+                        console.log('documentsById[1].views', val);
+                    });                
+                },0)
+
+                setting.then(function(){
+                    console.log('set response received');
+                    console.log(arguments);
+
+                    model.getValue(['documentsById', 1, 'views']).
+                    then(function(val){
+                        console.log('documentsById[1].views', val);
+                    });
+                });
+            });
+        }
+
+        // setting: example with optimism + errors (I still don't get errors)
+        function setError() {
+            model.getValue(['documentsById', 1, 'views']).
+            then(function(val){
+                console.log('documentsById[1].views', val);
+
+                var setTo = 99;
+                console.log('let us set to', setTo);
+
+                var setting = model.setValue(['documentsById', 1, 'views'], setTo)
+                console.log('set request sent');
+
+                // neither cache nor interface are updated on this tick, so wait
+                // till next
+                setTimeout(function(){
+                    console.log('optimism!');
+
+                    console.log('from cache', model._root.cache.documentsById[1].views.value);
+
+                    model.getValue(['documentsById', 1, 'views']).
+                    then(function(val){
+                        console.log('from interface:');
+                        console.log('documentsById[1].views', val);
+                    });                
+                },0)
+
+                setting.then(
+                    function(){
+                    },
+                    function(){
+                        console.log('set response received failed');
+                        console.log(arguments);
+
+                        model.getValue(['documentsById', 1, 'views']).
+                        then(function(val){
+                            console.log('documentsById[1].views', val);
+                        });
+                    }
+                );
+            });
+        }
+
+        // getManyRoutesUsed();
+        // set();
+        setError();
     </script>
 </head>
 <body>

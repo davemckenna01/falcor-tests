@@ -2,9 +2,14 @@
 var falcorExpress = require('falcor-express');
 var Router = require('falcor-router');
 var _ = require('underscore');
+var sleep = require('sleep');
 
 var express = require('express');
 var app = express();
+
+var bodyParser = require('body-parser');
+
+app.use(bodyParser.urlencoded({extended: true}));
 
 // this would be in a data store somewhere on the server
 var datastore1 = {
@@ -44,7 +49,7 @@ function getItems (datastore, itemType) {
             throw new Error("not authorized");
         }  
 
-        console.log(pathSet);
+        console.log('getItems', pathSet);
 
         // pick out important parts of the request URL
         itemPropName = pathSet[0];
@@ -65,6 +70,7 @@ function getItems (datastore, itemType) {
 
             item = _.where(items, {id: itemId})[0];
 
+            // WARNING! WE'RE NOT HANDLING DB CONNECTION ERRORS!
             if (!item) {
                 results.push({
                     path: [itemPropName, itemId],
@@ -99,7 +105,7 @@ function getItemsChildren (datastore, itemType) {
             throw new Error("not authorized");
         }  
 
-        console.log(pathSet);
+        console.log('getItemsChildren', pathSet);
 
         // pick out important parts of the request URL
         itemPropName = pathSet[0];
@@ -128,6 +134,7 @@ function getItemsChildren (datastore, itemType) {
                 });
             } else {
                 childIds.forEach(function(childId) {
+                    // WARNING! WE'RE NOT HANDLING DB CONNECTION ERRORS!
                     if ( _.contains(item[childrenPropName], childId) ) {
                         results.push({
                             // path is something like:
@@ -158,7 +165,53 @@ var routes = [
     },
     {
         route: 'documentsById[{integers}].views',
-        get: getItems(datastore2, 'docs')
+        get: getItems(datastore2, 'docs'),
+        // this can be made more flexible to handle multiple ids, see Netflix's
+        // demo for pattern
+        set: function(jsonGraphArg) {
+            var documentsById,
+                docId,
+                doc;
+
+            console.log(jsonGraphArg.documentsById); 
+
+            documentsById = jsonGraphArg.documentsById;
+
+            // WARNING! ASSUMING ONLY ONE ITEM HERE!
+            docId = Object.keys(documentsById)[0];
+
+            // this is sloppy - how to handle string vs int ids in general with
+            // Falcor?
+            docId = parseInt(docId);
+
+            // 1. set requested items (this is our "DB" call)
+            doc = _.where(datastore2.docs, {id: docId})[0];
+            if (doc) doc.views = documentsById[docId].views;
+
+            // simulate slow network (in the lamest way possible)
+            sleep.sleep(5)
+
+            // simulate error setting on magic number
+            if (documentsById[docId].views === 99) {
+                return {
+                    path: ['documentsById', docId, 'views'],
+                    value: {$type: 'error', value: 'something failed'}
+                }
+            }
+
+            // WARNING! WE'RE NOT HANDLING DB CONNECTION ERRORS!
+            if (doc) {
+                return {
+                    path: ['documentsById', docId, 'views'],
+                    value: doc.views
+                }
+            } else {
+                return {
+                    path: ['documentsById', docId],
+                    value: undefined
+                }
+            }
+        }
     },
     {
         route: 'tagList[{integers}].name',

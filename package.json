@@ -12,6 +12,7 @@
     "falcor-router": "~0.2.12",
     "express": "~4.13.4",
     "falcor-express": "~0.1.2",
-    "underscore": "~1.8.3"
+    "underscore": "~1.8.3",
+    "body-parser": "~1.15.0"
   }
 }
