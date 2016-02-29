@@ -94,9 +94,71 @@
             });
         }
 
+        function callAddTag () {
+            model.call(
+                // path to function
+                ['tagList', 2, 'documents', 'push']
+                // arguments, in this case a doc id to push to the documents array
+                ,[1]
+                // "refPaths", these are just defining additional data that you
+                // want to be returned in the graph segment in the response. They're
+                // called refPaths because they are appended on to any references
+                // that you include in your response. So in this case I've added an 
+                // item at tagList[2].documents[1], which has a value of
+                // { $type: "ref", value: ["documentsById", 1] } which is a reference,
+                // so what would have been returned as:
+                // jsonGraph: {
+                //     tagList: {
+                //         2: {
+                //             documents: {
+                //                 1: {$type: "ref", value: ["documentsById", 1]}
+                //             }
+                //         }
+                //     }
+                // }
+
+                // now due to DataSource magic, gets returned as:
+
+                // jsonGraph: {
+                //     tagList: {
+                //         2: {
+                //             documents: {
+                //                 1: {$type: "ref", value: ["documentsById", 1]}
+                //             }
+                //         }
+                //     },
+                //     documentsById : {
+                //         1: {
+                //             filename: "bell_bill.pdf",
+                //             size: 73621
+                //         }
+                //     }
+                // }
+                // ... because it knows it has to expand the reference to get at
+                // filename and size
+                ,[['filename'], ['size']]
+            ).
+            then(
+                function(jsonEnvelope) {
+                    console.log(JSON.stringify(jsonEnvelope));
+
+                    // NOTE we won't hit the network to get filename b/c we
+                    // specified that it (along with size) should be returned
+                    // from the call to push doc 1 into tagList 2's doc list.
+                    model.getValue(['tagList', 2, 'documents', 1, 'filename']).
+                    then(function(val){
+                        console.log(val)
+                    });  
+                }
+            );
+        }
+
         // getManyRoutesUsed();
         // set();
-        setError();
+        // setError();
+
+        callAddTag();
+
     </script>
 </head>
 <body>

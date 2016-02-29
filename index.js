@@ -220,7 +220,28 @@ var routes = [
     {
         route: 'tagList[{integers}].documents[{integers}]',
         get: getItemsChildren(datastore1, 'tags')
-    }    
+    },
+    {
+        route: 'tagList[{integers}].documents.push',
+        call: function(callPath, args) {
+            var tagId,
+                tag,
+                docId;
+
+            tagId = callPath[1][0];
+            docId = args[0];
+
+            // 1. add doc to list of docs for this tag (this is our DB call)
+            tag = _.where(datastore1.tags, {id: tagId})[0];
+            tag.documents.push(docId);
+
+            return [{
+                // return the path to, and value of, the newly created node
+                path: ['tagList', tagId, 'documents', docId],
+                value: { $type: "ref", value: ["documentsById", docId] }
+            }]
+        }
+    }
 ]
 // Create a Router base class
 var BaseRouter = Router.createClass(routes);
